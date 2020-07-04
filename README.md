@@ -371,7 +371,6 @@ Example for breaking up yesterday's data into multiple sensors:
 ```
 
 ## Sponsoring
-If this is helpful, feel free to `Buy Me a Beer`; or check other options on the Github `❤️ Sponsor` link on the top of this page.
-
+If this is helpful, you could buy the original coder a coffe, not me:
 
 <a href="https://www.buymeacoffee.com/nitobuendia" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/arial-orange.png" alt="Buy Me A Coffee" style="height: 51px !important;width: 217px !important;" ></a>
