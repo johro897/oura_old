@@ -1,3 +1,4 @@
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
 # Oura - Custom Component for Home-Assisant
 
 This project is a custom component for [Home-Assistant](https://home-assistant.io).
@@ -6,6 +7,7 @@ The component sensors with sleep data for previous days from [Oura Ring](https:/
 
 ## Installation
 
+### Manually
 1. Copy the files from the `custom_component/oura/` folder into the `custom_component/oura/` of your Home-Assistant installation.
 
 1. Configure the sensors following the instructions in `Configuration`.
@@ -20,6 +22,8 @@ The component sensors with sleep data for previous days from [Oura Ring](https:/
 1. Oura component will exchange the code for a token and update on the next schedule. If you want, you can force a sync from `Developer Tools` > `Services` > Service: `homeassistant.update_entity` + Entity: the Oura sensor and calling the service once (or twice after a break).
     *  If the entity is not updating, check your logs for any potential errors.
 
+### HACS
+This repository is prepared for HACS and could be installed as a custom repository
 
 ## Configuration
 
