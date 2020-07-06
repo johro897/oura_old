@@ -12,6 +12,8 @@ import voluptuous
 from . import api
 from . import views
 
+_LOGGER = logging.getLogger(__name__)
+
 # Constants.
 _FULL_WEEKDAY_NAMES = [
     'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
@@ -203,7 +205,8 @@ class OuraSleepSensor(entity.Entity):
           days_ago = None
 
     if days_ago is None:
-      logging.info(f'Oura: Unknown day name `{date_name}`, using yesterday.')
+      _LOGGER.info("Oura: Unknown day name %s, using yesterday.", date_name) 
+      #logging.info(f'Oura: Unknown day name `{date_name}`, using yesterday.')
       days_ago = 1
 
     return str(today - datetime.timedelta(days=days_ago))
@@ -240,7 +243,8 @@ class OuraSleepSensor(entity.Entity):
       Oura sleep data for that given day.
     """
     if not oura_data or 'sleep' not in oura_data:
-      logging.error('Couldn\'t fetch data for Oura ring sensor.')
+      _LOGGER.error("Couldn\'t fetch data for Oura ring sensor.") 
+      #logging.error('Couldn\'t fetch data for Oura ring sensor.')
       return {}
 
     sleep_data = oura_data.get('sleep')
@@ -271,6 +275,13 @@ class OuraSleepSensor(entity.Entity):
     oura_data = self._api.get_sleep_data(start_date, end_date)
     sleep_data = self._parse_sleep_data(oura_data)
 
+    # Added for test purpose
+    test_data = self._api.get_readiness_data(start_date, end_date)
+    
+    _LOGGER.info("SLEEP      : %s", oura_data)
+    _LOGGER.info("SLEEP PARSE: %s", sleep_data)
+    _LOGGER.info("READINESS  : %s", test_data)
+
     if not sleep_data:
       return
 
@@ -292,15 +303,18 @@ class OuraSleepSensor(entity.Entity):
         if not date_value:
           break
 
-        logging.info(
-            f'Unable to read Oura data for {date_name_title} '
-            f'({last_date_value}). Fetching {date_value} instead.')
+        _LOGGER.info("Unable to read Oura data for %s", date_name_title)
+        _LOGGER.info("(%s). Fetching %s instead.", last_date_value, date_value) 
+        #logging.info(
+        #    f'Unable to read Oura data for {date_name_title} '
+        #    f'({last_date_value}). Fetching {date_value} instead.')
 
         sleep = sleep_data.get(date_value)
         backfill += 1
 
       if not sleep:
-        logging.error(f'Unable to read Oura data for {date_name_title}.')
+        _LOGGER.error("Unable to read Oura data for %s.", date_name_title) 
+        #logging.error(f'Unable to read Oura data for {date_name_title}.')
         continue
 
       # State gets the value of the sleep score for the first monitored day.
