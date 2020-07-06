@@ -115,6 +115,85 @@ def _add_days_to_string_date(string_date, days_to_add):
   new_date = date + datetime.timedelta(days=days_to_add)
   return str(new_date.date())
 
+# Oura update logic.
+def _get_date_type_by_name(date_name):
+  """Gets the type of date format based in the date name.
+
+  Args:
+    date_name: Date for which to verify type.
+
+  Returns:
+    Date type(MonitoredDayType).
+  """
+  if date_name == 'yesterday':
+    return MonitoredDayType.YESTERDAY
+  elif date_name in _FULL_WEEKDAY_NAMES:
+    return MonitoredDayType.WEEKDAY
+  elif 'd_ago' in date_name or 'days_ago' in date_name:
+    return MonitoredDayType.DAYS_AGO
+  else:
+    return MonitoredDayType.UNKNOWN
+
+def _get_date_by_name(date_name):
+  """Translates a date name into YYYY-MM-DD format for the given day.
+
+  Args:
+    date_name: Name of the date to get. Supported:
+      yesterday, weekday(e.g. monday, tuesday), Xdays_ago(e.g. 3days_ago).
+
+  Returns:
+    Date in YYYY-MM-DD format.
+  """
+  date_type = _get_date_type_by_name(date_name)
+  today = datetime.date.today()
+  days_ago = None
+  if date_type == MonitoredDayType.YESTERDAY:
+    days_ago = 1
+
+  elif date_type == MonitoredDayType.WEEKDAY:
+    date_index = _FULL_WEEKDAY_NAMES.index(date_name)
+    days_ago = (
+        today.weekday() - date_index
+        if today.weekday() > date_index else
+        7 + today.weekday() - date_index
+    )
+
+  elif date_type == MonitoredDayType.DAYS_AGO:
+    digits_regex = re.compile(r'\d+')
+    digits_match = digits_regex.match(date_name)
+    if digits_match:
+      try:
+        days_ago = int(digits_match.group())
+      except:
+        days_ago = None
+
+  if days_ago is None:
+    _LOGGER.info("Oura: Unknown day name %s, using yesterday.", date_name) 
+    #logging.info(f'Oura: Unknown day name `{date_name}`, using yesterday.')
+    days_ago = 1
+
+  return str(today - datetime.timedelta(days=days_ago))
+
+def _get_backfill_date(date_name, date_value):
+  """Gets the backfill date for a given date and date name.
+
+  Args:
+    date_name: Date name to backfill.
+    date_value: Last checked value.
+
+  Returns:
+    Potential backfill date. None if Unknown.
+  """
+  date_type = _get_date_type_by_name(date_name)
+
+  if date_type == MonitoredDayType.YESTERDAY:
+    return _add_days_to_string_date(date_value, -1)
+  elif date_type == MonitoredDayType.WEEKDAY:
+    return _add_days_to_string_date(date_value, -7)
+  elif date_type == MonitoredDayType.DAYS_AGO:
+    return _add_days_to_string_date(date_value, -1)
+  else:
+    return None
 
 class OuraSleepSensor(entity.Entity):
   """Representation of an Oura Ring Sensor sensor.
@@ -167,85 +246,7 @@ class OuraSleepSensor(entity.Entity):
         title=SENSOR_NAME,
         notification_id=f'oura_setup_{self._name}')
 
-  # Oura update logic.
-  def _get_date_type_by_name(self, date_name):
-    """Gets the type of date format based in the date name.
-
-    Args:
-      date_name: Date for which to verify type.
-
-    Returns:
-      Date type(MonitoredDayType).
-    """
-    if date_name == 'yesterday':
-      return MonitoredDayType.YESTERDAY
-    elif date_name in _FULL_WEEKDAY_NAMES:
-      return MonitoredDayType.WEEKDAY
-    elif 'd_ago' in date_name or 'days_ago' in date_name:
-      return MonitoredDayType.DAYS_AGO
-    else:
-      return MonitoredDayType.UNKNOWN
-
-  def _get_date_by_name(self, date_name):
-    """Translates a date name into YYYY-MM-DD format for the given day.
-
-    Args:
-      date_name: Name of the date to get. Supported:
-        yesterday, weekday(e.g. monday, tuesday), Xdays_ago(e.g. 3days_ago).
-
-    Returns:
-      Date in YYYY-MM-DD format.
-    """
-    date_type = self._get_date_type_by_name(date_name)
-    today = datetime.date.today()
-    days_ago = None
-    if date_type == MonitoredDayType.YESTERDAY:
-      days_ago = 1
-
-    elif date_type == MonitoredDayType.WEEKDAY:
-      date_index = _FULL_WEEKDAY_NAMES.index(date_name)
-      days_ago = (
-          today.weekday() - date_index
-          if today.weekday() > date_index else
-          7 + today.weekday() - date_index
-      )
-
-    elif date_type == MonitoredDayType.DAYS_AGO:
-      digits_regex = re.compile(r'\d+')
-      digits_match = digits_regex.match(date_name)
-      if digits_match:
-        try:
-          days_ago = int(digits_match.group())
-        except:
-          days_ago = None
-
-    if days_ago is None:
-      _LOGGER.info("Oura: Unknown day name %s, using yesterday.", date_name) 
-      #logging.info(f'Oura: Unknown day name `{date_name}`, using yesterday.')
-      days_ago = 1
-
-    return str(today - datetime.timedelta(days=days_ago))
-
-  def _get_backfill_date(self, date_name, date_value):
-    """Gets the backfill date for a given date and date name.
-
-    Args:
-      date_name: Date name to backfill.
-      date_value: Last checked value.
-
-    Returns:
-      Potential backfill date. None if Unknown.
-    """
-    date_type = self._get_date_type_by_name(date_name)
-
-    if date_type == MonitoredDayType.YESTERDAY:
-      return _add_days_to_string_date(date_value, -1)
-    elif date_type == MonitoredDayType.WEEKDAY:
-      return _add_days_to_string_date(date_value, -7)
-    elif date_type == MonitoredDayType.DAYS_AGO:
-      return _add_days_to_string_date(date_value, -1)
-    else:
-      return None
+  
 
   def _parse_sleep_data(self, oura_data):
     """Processes sleep data into a dictionary.
@@ -278,7 +279,7 @@ class OuraSleepSensor(entity.Entity):
   def update(self):
     """Fetches new state data for the sensor."""
     sleep_dates = {
-        date_name: self._get_date_by_name(date_name)
+        date_name: _get_date_by_name(date_name)
         for date_name in self._monitored_days
     }
 
@@ -311,7 +312,7 @@ class OuraSleepSensor(entity.Entity):
              backfill < self._backfill and
              date_value >= start_date):
         last_date_value = date_value
-        date_value = self._get_backfill_date(date_name, date_value)
+        date_value = _get_backfill_date(date_name, date_value)
         if not date_value:
           break
 
@@ -438,87 +439,6 @@ class OuraReadinessSensor(entity.Entity):
         title=SENSOR_NAME,
         notification_id=f'oura_setup_{self._name}')
 
-  # Oura update logic.
-  def _get_date_type_by_name(self, date_name):
-    """Gets the type of date format based in the date name.
-
-    Args:
-      date_name: Date for which to verify type.
-
-    Returns:
-      Date type(MonitoredDayType).
-    """
-    if date_name == 'yesterday':
-      return MonitoredDayType.YESTERDAY
-    elif date_name in _FULL_WEEKDAY_NAMES:
-      return MonitoredDayType.WEEKDAY
-    elif 'd_ago' in date_name or 'days_ago' in date_name:
-      return MonitoredDayType.DAYS_AGO
-    else:
-      return MonitoredDayType.UNKNOWN
-
-  def _get_date_by_name(self, date_name):
-    """Translates a date name into YYYY-MM-DD format for the given day.
-
-    Args:
-      date_name: Name of the date to get. Supported:
-        yesterday, weekday(e.g. monday, tuesday), Xdays_ago(e.g. 3days_ago).
-
-    Returns:
-      Date in YYYY-MM-DD format.
-    """
-    date_type = self._get_date_type_by_name(date_name)
-    today = datetime.date.today()
-    days_ago = None
-    if date_type == MonitoredDayType.YESTERDAY:
-      days_ago = 1
-
-    elif date_type == MonitoredDayType.WEEKDAY:
-      date_index = _FULL_WEEKDAY_NAMES.index(date_name)
-      days_ago = (
-          today.weekday() - date_index
-          if today.weekday() > date_index else
-          7 + today.weekday() - date_index
-      )
-
-    elif date_type == MonitoredDayType.DAYS_AGO:
-      digits_regex = re.compile(r'\d+')
-      digits_match = digits_regex.match(date_name)
-      if digits_match:
-        try:
-          days_ago = int(digits_match.group())
-        except:
-          days_ago = None
-
-    if days_ago is None:
-      _LOGGER.info("Oura: Unknown day name %s, using yesterday.", date_name) 
-      #logging.info(f'Oura: Unknown day name `{date_name}`, using yesterday.')
-      days_ago = 1
-
-    return str(today - datetime.timedelta(days=days_ago))
-
-  def _get_backfill_date(self, date_name, date_value):
-    """Gets the backfill date for a given date and date name.
-
-    Args:
-      date_name: Date name to backfill.
-      date_value: Last checked value.
-
-    Returns:
-      Potential backfill date. None if Unknown.
-    """
-    date_type = self._get_date_type_by_name(date_name)
-
-    if date_type == MonitoredDayType.YESTERDAY:
-      return _add_days_to_string_date(date_value, -1)
-    elif date_type == MonitoredDayType.WEEKDAY:
-      return _add_days_to_string_date(date_value, -7)
-    elif date_type == MonitoredDayType.DAYS_AGO:
-      return _add_days_to_string_date(date_value, -1)
-    else:
-      return None
-
-
   def _parse_readiness_data(self, oura_data):
     """Processes sleep data into a dictionary.
 
@@ -550,7 +470,7 @@ class OuraReadinessSensor(entity.Entity):
   def update(self):
     """Fetches new state data for the sensor."""
     readiness_dates = {
-        date_name: self._get_date_by_name(date_name)
+        date_name: _get_date_by_name(date_name)
         for date_name in self._monitored_days
     }
 
@@ -585,7 +505,7 @@ class OuraReadinessSensor(entity.Entity):
              backfill < self._backfill and
              date_value >= start_date):
         last_date_value = date_value
-        date_value = self._get_backfill_date(date_name, date_value)
+        date_value = _get_backfill_date(date_name, date_value)
         if not date_value:
           break
 
@@ -607,8 +527,6 @@ class OuraReadinessSensor(entity.Entity):
       if self._monitored_days.index(date_name) == 0:
         self._state = readiness.get('score')
 
-      #bedtime_start = parser.parse(sleep.get('bedtime_start'))
-      #bedtime_end = parser.parse(sleep.get('bedtime_end'))
 
       self._attributes[date_name] = {
           'date': date_value,
@@ -620,37 +538,6 @@ class OuraReadinessSensor(entity.Entity):
           'score_resting_hr': readiness.get('score_resting_hr'),
           'score_sleep_balance': readiness.get('score_sleep_balance'),
           'score_temperature': readiness.get('score_temperature'),
-
-          # HH:MM at which you went bed.
-          #'bedtime_start_hour': bedtime_start.strftime('%H:%M'),
-          # HH:MM at which you woke up.
-          #'bedtime_end_hour': bedtime_end.strftime('%H:%M'),
-
-          # Breaths / minute.
-          #'breath_average': int(round(sleep.get('breath_average'), 0)),
-          # Temperature deviation in Celsius.
-          #'temperature_delta': sleep.get('temperature_delta'),
-
-          # Beats / minute (lowest).
-          #'resting_heart_rate': sleep.get('hr_lowest'),
-          # Avg. beats / minute.
-          #'heart_rate_average': int(round((
-          #    sum(sleep.get('hr_5min', 0)) /
-          #    (len(sleep.get('hr_5min', [])) or 1)),
-          #    0)),
-
-          # Hours in deep sleep.
-          #'deep_sleep_duration': _seconds_to_hours(sleep.get('deep')),
-          # Hours in REM sleep.
-          #'rem_sleep_duration': _seconds_to_hours(sleep.get('rem')),
-          # Hours in light sleep.
-          #'light_sleep_duration': _seconds_to_hours(sleep.get('light')),
-          # Hours sleeping: deep + rem + light.
-          #'total_sleep_duration': _seconds_to_hours(sleep.get('total')),
-          # Hours awake.
-          #'awake_duration': _seconds_to_hours(sleep.get('awake')),
-          # Hours in bed: sleep + awake.
-          #'in_bed_duration': _seconds_to_hours(sleep.get('duration')),
       }
 
   # Hass.io properties.
