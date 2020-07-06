@@ -8,6 +8,8 @@ import requests
 import urllib
 from . import views
 
+_LOGGER = logging.getLogger(__name__)
+
 # Oura API config.
 _TOKEN_FILE = 'oura-token-cache-{}'
 _OURA_API = 'https://api.ouraring.com/v1'
@@ -95,8 +97,9 @@ class OuraApi(object):
 
     return None
 
-    logging.error(
-        'Couldn\'t fetch data for Oura ring sensor. Verify API token.')
+    _LOGGER.error("Couldn\'t fetch data for Oura ring sensor. Verify API token.")
+    #logging.error(
+    #    'Couldn\'t fetch data for Oura ring sensor. Verify API token.')
 
   def get_readiness_data(self, start_date, end_date=None):
     """Fetches data for a sleep OuraEndpoint and date.
@@ -140,8 +143,9 @@ class OuraApi(object):
 
     return None
 
-    logging.error(
-        'Couldn\'t fetch data for Oura ring sensor. Verify API token.')
+    _LOGGER.error("Couldn\'t fetch data for Oura ring sensor. Verify API token.")
+    #logging.error(
+    #    'Couldn\'t fetch data for Oura ring sensor. Verify API token.')
 
   def _get_api_endpoint(self, api_endpoint, **kwargs):
     """Gets URL for a given endpoint and day.
@@ -201,7 +205,8 @@ class OuraApi(object):
       self._access_token = token_data.get('access_token')
       self._refresh_token = token_data.get('refresh_token')
 
-    logging.error('Unable to retrieve access token from file data.')
+    _LOGGER.error("Unable to retrieve access token from file data.")
+    #logging.error('Unable to retrieve access token from file data.')
 
   def _get_authentication_code(self):
     """Gets authentication code."""
@@ -230,15 +235,17 @@ class OuraApi(object):
       access_token_data: Dictionary containing access token and refresh token.
     """
     if 'access_token' not in access_token_data:
-      logging.error('Oura API was unable to retrieve new API token.')
+      _LOGGER.error("Oura API was unable to retrieve new API token.")
+      #logging.error('Oura API was unable to retrieve new API token.')
       return
 
     if 'refresh_token' not in access_token_data:
       if self._refresh_token:
         access_token_data['refresh_token'] = self._refresh_token
       else:
-        logging.error(
-            'Refresh token not available. Oura API will become unauthorized.')
+        _LOGGER.error("Refresh token not available. Oura API will become unauthorized.")
+        #logging.error(
+        #    'Refresh token not available. Oura API will become unauthorized.')
         return
 
     self._access_token = access_token_data['access_token']
