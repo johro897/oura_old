@@ -4,6 +4,6 @@
   "documentation": "https://github.com/johro897/oura-custom-component",
   "issue_tracker": "https://github.com/johro897/oura-custom-component/issues",
   "dependencies": [],
-  "codeowners": ["@nitobuendia","@johhro897"],
+  "codeowners": ["@nitobuendia","@johro897"],
   "requirements": []
 }
