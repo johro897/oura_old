@@ -11,7 +11,8 @@ from . import views
 _LOGGER = logging.getLogger(__name__)
 
 # Oura API config.
-_TOKEN_FILE = 'oura-token-cache-{}'
+#_TOKEN_FILE = 'oura-token-cache-{}'
+_TOKEN_FILE = 'oura-token-cache'
 _OURA_API = 'https://api.ouraring.com/v1'
 _OURA_CLOUD = 'https://cloud.ouraring.com'
 _MAX_API_RETRIES = 3
@@ -55,10 +56,11 @@ class OuraApi(object):
     self._access_token = None
     self._refresh_token = None
 
-  def get_sleep_data(self, start_date, end_date=None):
+  def get_oura_data(self, data_type, start_date, end_date=None):
     """Fetches data for a sleep OuraEndpoint and date.
 
     Args:
+      data_type: which data to collect (SLEEP, READINESS)
       start_date: Day for which to fetch data(YYYY-MM-DD).
       end_date: Last day for which to retrieve data(YYYY-MM-DD).
         If same as start_date, leave empty.
@@ -76,14 +78,15 @@ class OuraApi(object):
     if not self._access_token:
       return None
 
-    retries = 0
-    while retries < _MAX_API_RETRIES:
+    # Setting correct endpoint
+    if data_type == 'SLEEP':
       api_url = self._get_api_endpoint(OuraEndpoints.SLEEP,
                                        start_date=start_date)
-
-      response = requests.get(api_url)
-      response_data = response.json()
-
+    elif data_type == 'READINESS':
+      api_url = self._get_api_endpoint(OuraEndpoints.READINESS,
+                                      start_date=start_date)
+    else:
+      _LOGGER.error("Wrong Data Type when getting data")
       if not response_data:
         retries += 1
         continue
@@ -124,8 +127,8 @@ class OuraApi(object):
 
     retries = 0
     while retries < _MAX_API_RETRIES:
-      api_url = self._get_api_endpoint(OuraEndpoints.READINESS,
-                                      start_date=start_date)
+      #api_url = self._get_api_endpoint(OuraEndpoints.SLEEP,
+      #                                 start_date=start_date)
 
       response = requests.get(api_url)
       response_data = response.json()
@@ -323,4 +326,5 @@ class OuraApi(object):
   @property
   def token_file_name(self):
     """Gets the API token file name for the related sensor."""
-    return _TOKEN_FILE.format(self._sensor.name)
+    return _TOKEN_FILE
+    #return _TOKEN_FILE.format(self._sensor.token)

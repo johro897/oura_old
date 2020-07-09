@@ -27,7 +27,7 @@ SENSOR_NAME = 'Oura Ring'
 _CONF_CLIENT_ID = 'client_id'
 _CONF_CLIENT_SECRET = 'client_secret'
 _CONF_BACKFILL = 'max_backfill'
-_CONF_NAME_1 = 'sleep_name'
+_CONF_NAME = 'name'
 _CONF_NAME_2 = 'readiness_name'
 
 # Default attributes.
@@ -42,7 +42,7 @@ PLATFORM_SCHEMA = config_validation.PLATFORM_SCHEMA.extend({
     voluptuous.Optional(
         const.CONF_MONITORED_VARIABLES,
         default=_DEFAULT_MONITORED_VARIABLES): config_validation.ensure_list,
-    voluptuous.Optional(_CONF_NAME_1, default=_DEFAULT_NAME): config_validation.string,
+    voluptuous.Optional(_CONF_NAME, default=_DEFAULT_NAME): config_validation.string,
     voluptuous.Optional(_CONF_NAME_2, default=_DEFAULT_NAME_2): config_validation.string,
     voluptuous.Optional(
         _CONF_BACKFILL,
@@ -215,7 +215,7 @@ class OuraSleepSensor(entity.Entity):
     self._hass = hass
 
     # Sensor config.
-    self._name = config.get(_CONF_NAME_1)
+    self._name = config.get(_CONF_NAME) + '_sleep'
     self._backfill = config.get(_CONF_BACKFILL)
     self._monitored_days = [
         date_name.lower()
@@ -288,7 +288,7 @@ class OuraSleepSensor(entity.Entity):
     start_date = _add_days_to_string_date(min(sleep_dates.values()), -7)
     end_date = max(sleep_dates.values())
 
-    oura_data = self._api.get_sleep_data(start_date, end_date)
+    oura_data = self._api.get_oura_data('SLEEP', start_date, end_date)
     sleep_data = self._parse_sleep_data(oura_data)
   
     _LOGGER.info("SLEEP      : %s", oura_data)
@@ -408,7 +408,7 @@ class OuraReadinessSensor(entity.Entity):
     self._hass = hass
 
     # Sensor config.
-    self._name = config.get(_CONF_NAME_2)
+    self._name = config.get(_CONF_NAME) + '_readiness'
     self._backfill = config.get(_CONF_BACKFILL)
     self._monitored_days = [
         date_name.lower()
@@ -481,7 +481,7 @@ class OuraReadinessSensor(entity.Entity):
 
 
     # Added for test purpose
-    oura_data = self._api.get_readiness_data(start_date, end_date)
+    oura_data = self._api.get_oura_data('READINESS', start_date, end_date)
     readiness_data = self._parse_readiness_data(oura_data)
     
     _LOGGER.info("READINESS  : %s", oura_data)
