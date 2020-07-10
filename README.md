@@ -3,7 +3,8 @@
 
 This project is a custom component for [Home-Assistant](https://home-assistant.io).
 
-The component sensors with sleep data for previous days from [Oura Ring](https://ouraring.com/).
+The component sensors with data for previous days from [Oura Ring](https://ouraring.com/).
+This fork has support for both sleep and readiness data.
 
 ## Installation
 
@@ -30,7 +31,8 @@ This repository is prepared for HACS and could be installed as a custom reposito
 ### Schema
 ```yaml
 - platform: oura
-  name:
+  sleep_name:
+  readiness_name
   client_id:
   client_secret:
   scan_interval:
@@ -39,7 +41,8 @@ This repository is prepared for HACS and could be installed as a custom reposito
 ```
 
 ### Parameters
-* `name`: Name of the sensor (e.g. sleep_quality).
+* `sleep_name`: Name of the sleep sensor (e.g. sleep_quality).
+* `readiness_name`: Name of the readiness sensor (e.g. readiness_score).
 * `client_id`: Oura client id. See `How to get client id and client secret` section for how to obtain this data.
 * `client_secret`: Oura client secret. See `How to get client id and client secret` section for how to obtain this data.
 * `scan_interval`: (Optional) Set how many seconds should pass in between refreshes. As the sleep data should only refresh once per day, we recommend to update every few hours (e.g. 7200 for 2h or 21600 for 6h).
@@ -49,7 +52,8 @@ This repository is prepared for HACS and could be installed as a custom reposito
 ### Example
 ```yaml
 - platform: oura
-  name: sleep_quality
+  sleep_name: sleep_quality
+  readiness_name: readiness_score
   client_id: !secret oura_client_id
   client_secret: !secret oura_client_secret
   scan_interval: 7200 # 2h = 2h * 60min * 60 seconds
@@ -111,7 +115,7 @@ If you set the `max_backfill` value to any positive integer, then it will backfi
 ### State and Attributes
 The state of the sensor will show the **sleep quality score** for the first selected day (recommended: yesterday).
 
-### Attributes per Day
+### Attributes per Day Sleep Sensor
 The attributes will contain the daily data for the selected days. In particular:
 * `date`: YYYY-MM-DD of the date of the data point.
 * `bedtime_start_hour`: Time at which you went to bed.
@@ -126,6 +130,18 @@ The attributes will contain the daily data for the selected days. In particular:
 * `total_sleep_duration`: Total hours of sleep.
 * `awake_duration`: Total hours awake during the night.
 * `in_bed_duration`: Total hours in bed.
+
+### Attributes per Day Readiness Sensor
+The attributes will contain the daily data for the selected days. In particular:
+* `date`: YYYY-MM-DD of the date of the data point.
+* `score_activity_balance`: How activity is affecting readiness.
+* `score_hrv_balance`: Trend of heart rate variability against the 3-month average.
+* `score_previous_day`: Previous day activity.
+* `score_previous_night`: How you slept previous night.
+* `score_recovery_index`: How long it takes for resting heart rate to stabilize.
+* `score_resting_hr`: Resting heartrate (bpm).
+* `score_sleep_balance`: Past 2 weeks sleep is in balance with needs.
+* `score_temperature`: Variations of temperature from your baseline
 
 ### Sample output
 
