@@ -92,43 +92,6 @@ class OuraApi(object):
                                       start_date=start_date)
     else:
       _LOGGER.error("Wrong Data Type when getting data")
-      if not response_data:
-        retries += 1
-        continue
-
-      if response_data.get('message') == 'Unauthorized':
-        retries += 1
-        self._refresh_access_token()
-        continue
-
-      return response_data
-
-    return None
-
-    _LOGGER.error("Couldn\'t fetch data for Oura ring sensor. Verify API token.")
-    #logging.error(
-    #    'Couldn\'t fetch data for Oura ring sensor. Verify API token.')
-
-  def get_readiness_data(self, start_date, end_date=None):
-    """Fetches data for a sleep OuraEndpoint and date.
-
-    Args:
-      start_date: Day for which to fetch data(YYYY-MM-DD).
-      end_date: Last day for which to retrieve data(YYYY-MM-DD).
-        If same as start_date, leave empty.
-
-    Returns:
-      Dictionary containing Oura sleep data.
-      None if the access token was not found or authorized.
-    """
-    if not self._access_token:
-      self._get_access_token_data_from_file()
-
-    # If after fetching the token, it is still not available, the update should
-    # not go through. This is most likely at the OAuth set up stage and may
-    # require input from the user.
-    if not self._access_token:
-      return None
 
     retries = 0
     while retries < _MAX_API_RETRIES:
