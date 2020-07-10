@@ -28,7 +28,6 @@ _CONF_CLIENT_ID = 'client_id'
 _CONF_CLIENT_SECRET = 'client_secret'
 _CONF_BACKFILL = 'max_backfill'
 _CONF_NAME = 'name'
-_CONF_NAME_2 = 'readiness_name'
 
 # Default attributes.
 _DEFAULT_NAME = 'sleep_score'
@@ -43,7 +42,6 @@ PLATFORM_SCHEMA = config_validation.PLATFORM_SCHEMA.extend({
         const.CONF_MONITORED_VARIABLES,
         default=_DEFAULT_MONITORED_VARIABLES): config_validation.ensure_list,
     voluptuous.Optional(_CONF_NAME, default=_DEFAULT_NAME): config_validation.string,
-    voluptuous.Optional(_CONF_NAME_2, default=_DEFAULT_NAME_2): config_validation.string,
     voluptuous.Optional(
         _CONF_BACKFILL,
         default=_DEFAULT_BACKFILL): config_validation.positive_int,
@@ -173,7 +171,6 @@ def _get_date_by_name(date_name):
 
   if days_ago is None:
     _LOGGER.info("Oura: Unknown day name %s, using yesterday.", date_name) 
-    #logging.info(f'Oura: Unknown day name `{date_name}`, using yesterday.')
     days_ago = 1
 
   return str(today - datetime.timedelta(days=days_ago))
@@ -226,31 +223,11 @@ class OuraSleepSensor(entity.Entity):
         for date_name in config.get(const.CONF_MONITORED_VARIABLES)
     ]
 
-    # API config.
-    client_id = self._config.get(_CONF_CLIENT_ID)
-    client_secret = self._config.get(_CONF_CLIENT_SECRET)
-    self._api = api.OuraApi(self, client_id, client_secret)
 
     # Attributes.
     self._state = None  # Sleep score.
     self._attributes = {}
 
-  # Oura set up logic.
-  def create_oauth_view(self, authorize_url):
-    """Creates a view and message to obtain authorization token.
-
-    Args:
-      authorize_url: Authorization URL.
-    """
-    self._hass.http.register_view(views.OuraAuthCallbackView(self))
-    self._hass.components.persistent_notification.create(
-        'In order to authorize Home-Assistant to view your Oura Ring data, '
-        'you must visit: '
-        f'<a href="{authorize_url}" target="_blank">{authorize_url}</a>',
-        title=SENSOR_NAME,
-        notification_id=f'oura_setup_{self._name}')
-
-  
 
   def _parse_sleep_data(self, oura_data):
     """Processes sleep data into a dictionary.
@@ -322,9 +299,6 @@ class OuraSleepSensor(entity.Entity):
 
         _LOGGER.info("Unable to read Oura data for %s", date_name_title)
         _LOGGER.info("(%s). Fetching %s instead.", last_date_value, date_value) 
-        #logging.info(
-        #    f'Unable to read Oura data for {date_name_title} '
-        #    f'({last_date_value}). Fetching {date_value} instead.')
 
         sleep = sleep_data.get(date_value)
         backfill += 1
@@ -419,29 +393,9 @@ class OuraReadinessSensor(entity.Entity):
         for date_name in config.get(const.CONF_MONITORED_VARIABLES)
     ]
 
-    # API config.
-    client_id = self._config.get(_CONF_CLIENT_ID)
-    client_secret = self._config.get(_CONF_CLIENT_SECRET)
-    self._api = api.OuraApi(self, client_id, client_secret)
-
     # Attributes.
     self._state = None  # Sleep score.
     self._attributes = {}
-
-  # Oura set up logic.
-  def create_oauth_view(self, authorize_url):
-    """Creates a view and message to obtain authorization token.
-
-    Args:
-      authorize_url: Authorization URL.
-    """
-    self._hass.http.register_view(views.OuraAuthCallbackView(self))
-    self._hass.components.persistent_notification.create(
-        'In order to authorize Home-Assistant to view your Oura Ring data, '
-        'you must visit: '
-        f'<a href="{authorize_url}" target="_blank">{authorize_url}</a>',
-        title=SENSOR_NAME,
-        notification_id=f'oura_setup_{self._name}')
 
   def _parse_readiness_data(self, oura_data):
     """Processes sleep data into a dictionary.
@@ -454,8 +408,7 @@ class OuraReadinessSensor(entity.Entity):
       Oura sleep data for that given day.
     """
     if not oura_data or 'readiness' not in oura_data:
-      _LOGGER.error("Couldn\'t fetch data for Oura ring sensor.") 
-      #logging.error('Couldn\'t fetch data for Oura ring sensor.')
+      _LOGGER.error("Couldn\'t fetch data for Oura ring sensor.")
       return {}
 
     readiness_data = oura_data.get('readiness')
@@ -514,17 +467,13 @@ class OuraReadinessSensor(entity.Entity):
           break
 
         _LOGGER.info("Unable to read Oura data for %s", date_name_title)
-        _LOGGER.info("(%s). Fetching %s instead.", last_date_value, date_value) 
-        #logging.info(
-        #    f'Unable to read Oura data for {date_name_title} '
-        #    f'({last_date_value}). Fetching {date_value} instead.')
+        _LOGGER.info("(%s). Fetching %s instead.", last_date_value, date_value)
 
         readiness = readiness_data.get(date_value)
         backfill += 1
 
       if not readiness:
         _LOGGER.error("Unable to read Oura data for %s.", date_name_title) 
-        #logging.error(f'Unable to read Oura data for {date_name_title}.')
         continue
 
       # State gets the value of the sleep score for the first monitored day.
