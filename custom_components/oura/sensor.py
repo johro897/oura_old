@@ -92,8 +92,12 @@ async def setup(hass, config):
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
   """Adds sensor platform to the list of platforms."""
-  add_devices([OuraSleepSensor(config, hass)], True)
-  add_devices([OuraReadinessSensor(config, hass)], True)
+  client_id = config.get(_CONF_CLIENT_ID)
+  client_secret = config.get(_CONF_CLIENT_SECRET)
+  name = config.get(_CONF_NAME)
+  oura_api = api.OuraApi(hass, client_id, client_secret, name)
+  add_devices([OuraSleepSensor(config, oura_api, hass)], True)
+  add_devices([OuraReadinessSensor(config, oura_api, hass)], True)
 
 
 def _seconds_to_hours(time_in_seconds):
@@ -208,12 +212,12 @@ class OuraSleepSensor(entity.Entity):
     update: updates sensor data.
   """
 
-  def __init__(self, config, hass):
+  def __init__(self, config, oura_api, hass):
     """Initializes the sensor."""
 
     self._config = config
     self._hass = hass
-
+    self._api = oura_api
     # Sensor config.
     self._name = config.get(_CONF_NAME) + '_sleep'
     self._backfill = config.get(_CONF_BACKFILL)
@@ -401,12 +405,12 @@ class OuraReadinessSensor(entity.Entity):
     update: updates sensor data.
   """
 
-  def __init__(self, config, hass):
+  def __init__(self, config, oura_api, hass):
     """Initializes the sensor."""
 
     self._config = config
     self._hass = hass
-
+    self._api = oura_api
     # Sensor config.
     self._name = config.get(_CONF_NAME) + '_readiness'
     self._backfill = config.get(_CONF_BACKFILL)

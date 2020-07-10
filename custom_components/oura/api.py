@@ -7,6 +7,7 @@ import os
 import requests
 import urllib
 from . import views
+from homeassistant.helpers import network
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class OuraApi(object):
     get_sleep_data: fetches sleep data from Oura cloud data.
   """
 
-  def __init__(self, sensor, client_id, client_secret):
+  def __init__(self, hass, client_id, client_secret, name):
     """Instantiates a new OuraApi class.
 
     Args:
@@ -48,13 +49,17 @@ class OuraApi(object):
       client_id: Client id for Oura API.
       client_secret: Client secret for Oura API.
     """
-    self._sensor = sensor
+    self._hass = hass
 
     self._client_id = client_id
     self._client_secret = client_secret
-
+    self._name = name
     self._access_token = None
     self._refresh_token = None
+    self._external_url =  network.get_url(
+      hass,
+      allow_internal=False,
+      )
 
   def get_oura_data(self, data_type, start_date, end_date=None):
     """Fetches data for a sleep OuraEndpoint and date.
@@ -194,6 +199,7 @@ class OuraApi(object):
   def _get_access_token_data_from_file(self):
     """Gets credentials data from the credentials file."""
     if not os.path.isfile(self.token_file_name):
+      _LOGGER.info('No File Exist')
       self._get_authentication_code()
       return
 
@@ -213,7 +219,9 @@ class OuraApi(object):
 
   def _get_authentication_code(self):
     """Gets authentication code."""
-    base_url = self._sensor._hass.config.api.base_url
+   
+    base_url =  self._external_url
+    _LOGGER.info('Base_url2: %s', base_url)
     callback_url = f'{base_url}{views.AUTH_CALLBACK_PATH}'
     state = self._sensor.name
 
@@ -289,6 +297,8 @@ class OuraApi(object):
                                                self._client_secret)
 
     base_url = self._sensor._hass.config.api.base_url
+    base_url =  self._external_url
+    _LOGGER.info('Base_url1: %s', base_url)
     callback_url = f'{base_url}{views.AUTH_CALLBACK_PATH}'
     request_data = {
         'grant_type': 'authorization_code',
