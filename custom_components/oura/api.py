@@ -37,7 +37,7 @@ class OuraApi(object):
     token_file_name: Name of the file that contains the sensor credentials.
 
   Methods:
-    get_sleep_data: fetches sleep data from Oura cloud data.
+    get_oura_data: fetches data from Oura cloud data.
   """
 
   def __init__(self, hass, client_id, client_secret, name):
@@ -47,6 +47,7 @@ class OuraApi(object):
       sensor: Oura sensor to which this api is linked.
       client_id: Client id for Oura API.
       client_secret: Client secret for Oura API.
+      name: The name for the sensors
     """
     self._hass = hass
     self._client_id = client_id
@@ -60,7 +61,7 @@ class OuraApi(object):
       )
 
   def get_oura_data(self, data_type, start_date, end_date=None):
-    """Fetches data for a sleep OuraEndpoint and date.
+    """Fetches data for a specified OuraEndpoint and date.
 
     Args:
       data_type: which data to collect (SLEEP, READINESS)
@@ -69,7 +70,7 @@ class OuraApi(object):
         If same as start_date, leave empty.
 
     Returns:
-      Dictionary containing Oura sleep data.
+      Dictionary containing Oura data.
       None if the access token was not found or authorized.
     """
     if not self._access_token:
@@ -93,8 +94,6 @@ class OuraApi(object):
 
     retries = 0
     while retries < _MAX_API_RETRIES:
-      #api_url = self._get_api_endpoint(OuraEndpoints.SLEEP,
-      #                                 start_date=start_date)
 
       response = requests.get(api_url)
       response_data = response.json()
@@ -177,7 +176,7 @@ class OuraApi(object):
 
     _LOGGER.error("Unable to retrieve access token from file data.")
 
-  def create_oauth_view(self, authorize_url):
+  def _create_oauth_view(self, authorize_url):
     self._hass.http.register_view(views.OuraAuthCallbackView(self))
     self._hass.components.persistent_notification.create(
         'In order to authorize Home-Assistant to view your Oura Ring data, '
@@ -206,7 +205,7 @@ class OuraApi(object):
         self._get_api_endpoint(OuraEndpoints.AUTHORIZE),
         urllib.parse.urlencode(authorize_params))
     _LOGGER.info('Authorize: %s', authorize_url)
-    self.create_oauth_view(authorize_url)
+    self._create_oauth_view(authorize_url)
 
   def _store_access_token_data(self, access_token_data):
     """Validates and stores access token data into file.

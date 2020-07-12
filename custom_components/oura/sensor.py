@@ -1,4 +1,4 @@
-"""Sleep sensor from Oura Ring data."""
+"""Sensors from Oura Ring data."""
 
 import datetime
 from dateutil import parser
@@ -30,8 +30,7 @@ _CONF_BACKFILL = 'max_backfill'
 _CONF_NAME = 'name'
 
 # Default attributes.
-_DEFAULT_NAME = 'sleep_score'
-_DEFAULT_NAME_2 = 'readiness_score'
+_DEFAULT_NAME = 'oura_ring'
 _DEFAULT_MONITORED_VARIABLES = ['yesterday']
 _DEFAULT_BACKFILL = 0
 
@@ -98,8 +97,14 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
   add_devices([OuraReadinessSensor(config, oura_api, hass)], True)
 
 
+# Support functions for the sensors
 def _seconds_to_hours(time_in_seconds):
-  """Parses times in seconds and converts it to hours."""
+  """Parses times in seconds and converts it to hours.
+  Args:
+    time_in_seconds: Time given in seconds
+
+  Returns:
+    Time in hours, rounded 2 decimals """
   return round(int(time_in_seconds) / (60 * 60), 2)
 
 
@@ -117,7 +122,6 @@ def _add_days_to_string_date(string_date, days_to_add):
   new_date = date + datetime.timedelta(days=days_to_add)
   return str(new_date.date())
 
-# Oura update logic.
 def _get_date_type_by_name(date_name):
   """Gets the type of date format based in the date name.
 
@@ -197,7 +201,7 @@ def _get_backfill_date(date_name, date_value):
     return None
 
 class OuraSleepSensor(entity.Entity):
-  """Representation of an Oura Ring Sensor sensor.
+  """Representation of an Oura Ring sleep sensor.
 
   Attributes:
     name: name of the sensor.
@@ -205,7 +209,6 @@ class OuraSleepSensor(entity.Entity):
     device_state_attributes: attributes of the sensor.
 
   Methods:
-    create_oauth_view: creates a view to manage OAuth setup.
     update: updates sensor data.
   """
 
@@ -240,8 +243,7 @@ class OuraSleepSensor(entity.Entity):
       Oura sleep data for that given day.
     """
     if not oura_data or 'sleep' not in oura_data:
-      _LOGGER.error("Couldn\'t fetch data for Oura ring sensor.") 
-      #logging.error('Couldn\'t fetch data for Oura ring sensor.')
+      _LOGGER.error("Couldn\'t fetch data for Oura ring sensor.")
       return {}
 
     sleep_data = oura_data.get('sleep')
@@ -258,7 +260,7 @@ class OuraSleepSensor(entity.Entity):
     return sleep_dict
 
   def update(self):
-    """Fetches new state data for the sensor."""
+    """Fetches new state data for the sleep sensor."""
     sleep_dates = {
         date_name: _get_date_by_name(date_name)
         for date_name in self._monitored_days
@@ -298,14 +300,13 @@ class OuraSleepSensor(entity.Entity):
           break
 
         _LOGGER.info("Unable to read Oura data for %s", date_name_title)
-        _LOGGER.info("(%s). Fetching %s instead.", last_date_value, date_value) 
+        _LOGGER.info("(%s). Fetching %s instead.", last_date_value, date_value)
 
         sleep = sleep_data.get(date_value)
         backfill += 1
 
       if not sleep:
-        _LOGGER.error("Unable to read Oura data for %s.", date_name_title) 
-        #logging.error(f'Unable to read Oura data for {date_name_title}.')
+        _LOGGER.error("Unable to read Oura data for %s.", date_name_title)
         continue
 
       # State gets the value of the sleep score for the first monitored day.
@@ -367,15 +368,14 @@ class OuraSleepSensor(entity.Entity):
     return self._attributes
 
 class OuraReadinessSensor(entity.Entity):
-  """Representation of an Oura Ring Sensor sensor.
+  """Representation of an Oura Ring readiness sensor.
 
   Attributes:
     name: name of the sensor.
     state: state of the sensor.
     device_state_attributes: attributes of the sensor.
 
-  Methods:
-    create_oauth_view: creates a view to manage OAuth setup.
+  Methods:    
     update: updates sensor data.
   """
 
@@ -394,18 +394,18 @@ class OuraReadinessSensor(entity.Entity):
     ]
 
     # Attributes.
-    self._state = None  # Sleep score.
+    self._state = None  # Readiness score.
     self._attributes = {}
 
   def _parse_readiness_data(self, oura_data):
-    """Processes sleep data into a dictionary.
+    """Processes readiness data into a dictionary.
 
     Args:
       oura_data: Sleep data in list format from Oura API.
 
     Returns:
       Dictionary where key is the requested summary_date and value is the
-      Oura sleep data for that given day.
+      Oura readiness data for that given day.
     """
     if not oura_data or 'readiness' not in oura_data:
       _LOGGER.error("Couldn\'t fetch data for Oura ring sensor.")
@@ -436,8 +436,6 @@ class OuraReadinessSensor(entity.Entity):
     start_date = _add_days_to_string_date(min(readiness_dates.values()), -7)
     end_date = max(readiness_dates.values())
 
-
-    # Added for test purpose
     oura_data = self._api.get_oura_data('READINESS', start_date, end_date)
     readiness_data = self._parse_readiness_data(oura_data)
     
@@ -476,20 +474,30 @@ class OuraReadinessSensor(entity.Entity):
         _LOGGER.error("Unable to read Oura data for %s.", date_name_title) 
         continue
 
-      # State gets the value of the sleep score for the first monitored day.
+      # State gets the value of the readiness score for the first monitored day.
       if self._monitored_days.index(date_name) == 0:
         self._state = readiness.get('score')
 
 
       self._attributes[date_name] = {
           'date': date_value,
+
+          # Activity level last days impact on readiness
           'score_activity_balance': readiness.get('score_activity_balance'),
+          # Heart Rate Variability trend
           'score_hrv_balance': readiness.get('score_hrv_balance'),
+
+          # Last days physical activity
           'score_previous_day': readiness.get('score_previous_day'),
+          # Sleep score last night
           'score_previous_night': readiness.get('score_previous_night'),
+          # How long it takes for resting heart rate stabilize
           'score_recovery_index': readiness.get('score_recovery_index'),
+          # Beats / Minute
           'score_resting_hr': readiness.get('score_resting_hr'),
+          # Sleep balance vs need
           'score_sleep_balance': readiness.get('score_sleep_balance'),
+          # Variation in body temperature
           'score_temperature': readiness.get('score_temperature'),
       }
 
