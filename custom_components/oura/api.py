@@ -7,6 +7,9 @@ import os
 import requests
 import urllib
 from . import views
+from homeassistant.helpers import network
+
+_LOGGER = logging.getLogger(__name__)
 
 # Oura API config.
 _TOKEN_FILE = 'oura-token-cache-{}'
@@ -34,35 +37,40 @@ class OuraApi(object):
     token_file_name: Name of the file that contains the sensor credentials.
 
   Methods:
-    get_sleep_data: fetches sleep data from Oura cloud data.
+    get_oura_data: fetches data from Oura cloud data.
   """
 
-  def __init__(self, sensor, client_id, client_secret):
+  def __init__(self, hass, client_id, client_secret, name):
     """Instantiates a new OuraApi class.
 
     Args:
       sensor: Oura sensor to which this api is linked.
       client_id: Client id for Oura API.
       client_secret: Client secret for Oura API.
+      name: The name for the sensors
     """
-    self._sensor = sensor
-
+    self._hass = hass
     self._client_id = client_id
     self._client_secret = client_secret
-
+    self._name = name
     self._access_token = None
     self._refresh_token = None
+    self._external_url =  network.get_url(
+      hass,
+      allow_internal=False,
+      )
 
-  def get_sleep_data(self, start_date, end_date=None):
-    """Fetches data for a sleep OuraEndpoint and date.
+  def get_oura_data(self, data_type, start_date, end_date=None):
+    """Fetches data for a specified OuraEndpoint and date.
 
     Args:
+      data_type: which data to collect (SLEEP, READINESS)
       start_date: Day for which to fetch data(YYYY-MM-DD).
       end_date: Last day for which to retrieve data(YYYY-MM-DD).
         If same as start_date, leave empty.
 
     Returns:
-      Dictionary containing Oura sleep data.
+      Dictionary containing Oura data.
       None if the access token was not found or authorized.
     """
     if not self._access_token:
@@ -74,10 +82,18 @@ class OuraApi(object):
     if not self._access_token:
       return None
 
+    # Setting correct endpoint
+    if data_type == 'SLEEP':
+      api_url = self._get_api_endpoint(OuraEndpoints.SLEEP,
+                                      start_date=start_date)
+    elif data_type == 'READINESS':
+      api_url = self._get_api_endpoint(OuraEndpoints.READINESS,
+                                      start_date=start_date)
+    else:
+      _LOGGER.error("Wrong Data Type when getting data")
+
     retries = 0
     while retries < _MAX_API_RETRIES:
-      api_url = self._get_api_endpoint(OuraEndpoints.SLEEP,
-                                       start_date=start_date)
 
       response = requests.get(api_url)
       response_data = response.json()
@@ -92,11 +108,9 @@ class OuraApi(object):
         continue
 
       return response_data
-
+    _LOGGER.error("Couldn\'t fetch data for Oura ring sensor. Verify API token.")
     return None
-
-    logging.error(
-        'Couldn\'t fetch data for Oura ring sensor. Verify API token.')
+    
 
   def _get_api_endpoint(self, api_endpoint, **kwargs):
     """Gets URL for a given endpoint and day.
@@ -141,7 +155,9 @@ class OuraApi(object):
 
   def _get_access_token_data_from_file(self):
     """Gets credentials data from the credentials file."""
+    _LOGGER.info('entering get access token from file')
     if not os.path.isfile(self.token_file_name):
+      _LOGGER.info('No File Exist')
       self._get_authentication_code()
       return
 
@@ -149,20 +165,33 @@ class OuraApi(object):
       token_data = json.loads(token_file.read()) or {}
 
     if token_data.get('code'):
+      _LOGGER.info('Toke is code')
       self._get_access_token_from_code(token_data.get('code'))
       return
 
     if token_data.get('access_token') and token_data.get('refresh_token'):
+      _LOGGER.info('Toke is access and refresh')
       self._access_token = token_data.get('access_token')
       self._refresh_token = token_data.get('refresh_token')
 
-    logging.error('Unable to retrieve access token from file data.')
+    _LOGGER.error("Unable to retrieve access token from file data.")
+
+  def _create_oauth_view(self, authorize_url):
+    self._hass.http.register_view(views.OuraAuthCallbackView(self))
+    self._hass.components.persistent_notification.create(
+        'In order to authorize Home-Assistant to view your Oura Ring data, '
+        'you must visit: '
+        f'<a href="{authorize_url}" target="_blank">{authorize_url}</a>',
+        title = self._name,
+        notification_id=f'oura_setup_{self._name}')
 
   def _get_authentication_code(self):
     """Gets authentication code."""
-    base_url = self._sensor._hass.config.api.base_url
+   
+    base_url =  self._external_url
+    _LOGGER.info('Base_url2: %s', base_url)
     callback_url = f'{base_url}{views.AUTH_CALLBACK_PATH}'
-    state = self._sensor.name
+   
 
     authorize_params = {
         'client_id': self._client_id,
@@ -170,13 +199,13 @@ class OuraApi(object):
         'redirect_uri': callback_url,
         'response_type': 'code',
         'scope': 'email personal daily',
-        'state': state,
+
     }
     authorize_url = '{}?{}'.format(
         self._get_api_endpoint(OuraEndpoints.AUTHORIZE),
         urllib.parse.urlencode(authorize_params))
-
-    self._sensor.create_oauth_view(authorize_url)
+    _LOGGER.info('Authorize: %s', authorize_url)
+    self._create_oauth_view(authorize_url)
 
   def _store_access_token_data(self, access_token_data):
     """Validates and stores access token data into file.
@@ -185,15 +214,14 @@ class OuraApi(object):
       access_token_data: Dictionary containing access token and refresh token.
     """
     if 'access_token' not in access_token_data:
-      logging.error('Oura API was unable to retrieve new API token.')
+      _LOGGER.error("Oura API was unable to retrieve new API token.")
       return
 
     if 'refresh_token' not in access_token_data:
       if self._refresh_token:
         access_token_data['refresh_token'] = self._refresh_token
       else:
-        logging.error(
-            'Refresh token not available. Oura API will become unauthorized.')
+        _LOGGER.error("Refresh token not available. Oura API will become unauthorized.")        
         return
 
     self._access_token = access_token_data['access_token']
@@ -233,7 +261,9 @@ class OuraApi(object):
     request_auth = requests.auth.HTTPBasicAuth(self._client_id,
                                                self._client_secret)
 
-    base_url = self._sensor._hass.config.api.base_url
+    
+    base_url =  self._external_url
+    _LOGGER.info('Base_url1: %s', base_url)
     callback_url = f'{base_url}{views.AUTH_CALLBACK_PATH}'
     request_data = {
         'grant_type': 'authorization_code',
@@ -271,4 +301,5 @@ class OuraApi(object):
   @property
   def token_file_name(self):
     """Gets the API token file name for the related sensor."""
-    return _TOKEN_FILE.format(self._sensor.name)
+    _LOGGER.info('token file: %s', _TOKEN_FILE.format(self._name))
+    return _TOKEN_FILE.format(self._name)
