@@ -124,6 +124,14 @@ def _seconds_to_hours(time_in_seconds):
     Time in hours, rounded 2 decimals """
   return round(int(time_in_seconds) / (60 * 60), 2)
 
+def _minutes_to_hours(time_in_minutes):
+  """Parses times in minutes and converts it to hours.
+  Args:
+    time_in_minutes: Time given in minutes
+
+  Returns:
+    Time in hours, rounded 2 decimals """
+  return round(int(time_in_minutes) / 60 , 2)
 
 def _add_days_to_string_date(string_date, days_to_add):
   """Adds (or subtracts) days from a string date.
@@ -652,10 +660,10 @@ class OuraActivitySensor(entity.Entity):
           'date': date_value,
           'score_stay_active': activity.get('score_stay_active'),
           'daily_movement': activity.get('daily_movement'),
-          'non_wear': _seconds_to_hours(activity.get('non_wear')),
-          'rest': _seconds_to_hours(activity.get('rest')),
-          'inactive': _seconds_to_hours(activity.get('inactive')),
-          'inactivity_alerts': activity.get('inactive_alerts'),
+          'non_wear': _minutes_to_hours(activity.get('non_wear')),
+          'rest': _minutes_to_hours(activity.get('rest')),
+          'inactive': _minutes_to_hours(activity.get('inactive')),
+          'inactivity_alerts': activity.get('inactivity_alerts'),
           'steps': activity.get('steps'),
           'cal_total': activity.get('cal_total'),
           'cal_active': activity.get('cal_active'),
