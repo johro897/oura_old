@@ -658,17 +658,30 @@ class OuraActivitySensor(entity.Entity):
       
       self._attributes[date_name] = {
           'date': date_value,
+
+          # indicates how well the ring user has managed to avoid of inactivity
           'score_stay_active': activity.get('score_stay_active'),
+          # Daily physical activity as equal meters i.e. amount of walking needed to get the same amount of activity.
           'daily_movement': activity.get('daily_movement'),
+          # Number of hours during the day when the user was not wearing the ring.
           'non_wear': _minutes_to_hours(activity.get('non_wear')),
+          # Number of hours during the day spent resting.
           'rest': _minutes_to_hours(activity.get('rest')),
+          # Number of inactive hours.
           'inactive': _minutes_to_hours(activity.get('inactive')),
+          # Number of continuous inactive periods of 60 minutes or more during the day.
           'inactivity_alerts': activity.get('inactivity_alerts'),
+          #  Total number of steps registered during the day.
           'steps': activity.get('steps'),
+          # Total energy consumption during the day including Basal Metabolic Rate in kilocalories.
           'cal_total': activity.get('cal_total'),
+          # Energy consumption caused by the physical activity of the day in kilocalories.
           'cal_active': activity.get('cal_active'),
+          # This activity score contributor indicates how often the ring user has reached his/her daily activity target during seven last days.
           'score_meet_daily_targets': activity.get('score_meet_daily_targets'),
+          # This activity score contributor indicates how regularly the ring user has had physical exercise the ring user has got during last seven days.
           'score_training_frequency': activity.get('score_training_frequency'),
+          # This activity score contributor indicates how much physical exercise the ring user has got during last seven days.
           'score_training_volume': activity.get('score_training_volume'),
       }
 
