@@ -31,8 +31,7 @@ This repository is prepared for HACS and could be installed as a custom reposito
 ### Schema
 ```yaml
 - platform: oura
-  sleep_name:
-  readiness_name
+  name:  
   client_id:
   client_secret:
   scan_interval:
@@ -41,8 +40,7 @@ This repository is prepared for HACS and could be installed as a custom reposito
 ```
 
 ### Parameters
-* `sleep_name`: Name of the sleep sensor (e.g. sleep_quality).
-* `readiness_name`: Name of the readiness sensor (e.g. readiness_score).
+* `name`: Prefix of the name for the sensor  (e.g. name: oura would give sensors sensor.oura_sleep and sensor.oura_readiness).
 * `client_id`: Oura client id. See `How to get client id and client secret` section for how to obtain this data.
 * `client_secret`: Oura client secret. See `How to get client id and client secret` section for how to obtain this data.
 * `scan_interval`: (Optional) Set how many seconds should pass in between refreshes. As the sleep data should only refresh once per day, we recommend to update every few hours (e.g. 7200 for 2h or 21600 for 6h).
@@ -113,9 +111,9 @@ If you set the `max_backfill` value to any positive integer, then it will backfi
 ## What Data Can Be Retrieved
 
 ### State and Attributes
-The state of the sensor will show the **sleep quality score** for the first selected day (recommended: yesterday).
 
 ### Attributes per Day Sleep Sensor
+The state of the sensor will show the **sleep quality score** for the first selected day (recommended: yesterday).
 The attributes will contain the daily data for the selected days. In particular:
 * `date`: YYYY-MM-DD of the date of the data point.
 * `bedtime_start_hour`: Time at which you went to bed.
@@ -132,6 +130,7 @@ The attributes will contain the daily data for the selected days. In particular:
 * `in_bed_duration`: Total hours in bed.
 
 ### Attributes per Day Readiness Sensor
+The state of the sensor will show the **readiness score** for the first selected day (recommended: yesterday).
 The attributes will contain the daily data for the selected days. In particular:
 * `date`: YYYY-MM-DD of the date of the data point.
 * `score_activity_balance`: How activity is affecting readiness.
