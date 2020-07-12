@@ -46,7 +46,7 @@ PLATFORM_SCHEMA = config_validation.PLATFORM_SCHEMA.extend({
         default=_DEFAULT_BACKFILL): config_validation.positive_int,
 })
 
-_EMPTY_SENSOR_ATTRIBUTE = {
+_EMPTY_SLEEP_SENSOR_ATTRIBUTE = {
     'date': None,
     'bedtime_start_hour': None,
     'bedtime_end_hour': None,
@@ -74,6 +74,22 @@ _EMPTY_READINESS_SENSOR_ATTRIBUTE = {
     'score_temperature': None,
 }
 
+_EMPTY_ACTIVITY_SENSOR_ATTRIBUTE = {
+    'date': None,
+    'score_stay_active': None,
+    'daily_movement': None,
+    'non_wear': None,
+    'rest': None,
+    'inactive': None,
+    'inactivity_alerts': None,
+    'steps': None,
+    'cal_total': None,
+    'cal_active': None,
+    'score_meet_daily_targets': None,
+    'score_training_frequency': None,
+    'score_training_volume': None,
+}
+
 class MonitoredDayType(enum.Enum):
   """Types of days which can be monitored."""
   UNKNOWN = 0
@@ -95,6 +111,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
   oura_api = api.OuraApi(hass, client_id, client_secret, name)
   add_devices([OuraSleepSensor(config, oura_api, hass)], True)
   add_devices([OuraReadinessSensor(config, oura_api, hass)], True)
+  add_devices([OuraActivitySensor(config, oura_api, hass)], True)
 
 
 # Support functions for the sensors
@@ -107,6 +124,14 @@ def _seconds_to_hours(time_in_seconds):
     Time in hours, rounded 2 decimals """
   return round(int(time_in_seconds) / (60 * 60), 2)
 
+def _minutes_to_hours(time_in_minutes):
+  """Parses times in minutes and converts it to hours.
+  Args:
+    time_in_minutes: Time given in minutes
+
+  Returns:
+    Time in hours, rounded 2 decimals """
+  return round(int(time_in_minutes) / 60 , 2)
 
 def _add_days_to_string_date(string_date, days_to_add):
   """Adds (or subtracts) days from a string date.
@@ -283,7 +308,7 @@ class OuraSleepSensor(entity.Entity):
 
     for date_name, date_value in sleep_dates.items():
       if date_name not in self._attributes:
-        self._attributes[date_name] = dict(_EMPTY_SENSOR_ATTRIBUTE)
+        self._attributes[date_name] = dict(_EMPTY_SLEEP_SENSOR_ATTRIBUTE)
         self._attributes[date_name]['date'] = date_value
 
       sleep = sleep_data.get(date_value)
@@ -499,6 +524,165 @@ class OuraReadinessSensor(entity.Entity):
           'score_sleep_balance': readiness.get('score_sleep_balance'),
           # Variation in body temperature
           'score_temperature': readiness.get('score_temperature'),
+      }
+
+  # Hass.io properties.
+  @property
+  def name(self):
+    """Returns the name of the sensor."""
+    return self._name
+
+  @property
+  def state(self):
+    """Returns the state of the sensor."""
+    return self._state
+
+  @property
+  def device_state_attributes(self):
+    """Returns the sensor attributes."""
+    return self._attributes
+
+class OuraActivitySensor(entity.Entity):
+  """Representation of an Oura Ring activity sensor.
+
+  Attributes:
+    name: name of the sensor.
+    state: state of the sensor.
+    device_state_attributes: attributes of the sensor.
+
+  Methods:
+    update: updates sensor data.
+  """
+
+  def __init__(self, config, oura_api, hass):
+    """Initializes the sensor."""
+
+    self._config = config
+    self._hass = hass
+    self._api = oura_api
+    # Sensor config.
+    self._name = config.get(_CONF_NAME) + '_activity'
+    self._backfill = config.get(_CONF_BACKFILL)
+    self._monitored_days = [
+        date_name.lower()
+        for date_name in config.get(const.CONF_MONITORED_VARIABLES)
+    ]
+
+
+    # Attributes.
+    self._state = None  # Activity score.
+    self._attributes = {}
+
+
+  def _parse_activity_data(self, oura_data):
+    """Processes activity data into a dictionary.
+
+    Args:
+      oura_data: Activity data in list format from Oura API.
+
+    Returns:
+      Dictionary where key is the requested summary_date and value is the
+      Oura activity data for that given day.
+    """
+    if not oura_data or 'activity' not in oura_data:
+      _LOGGER.error("Couldn\'t fetch data for Oura ring sensor.")
+      return {}
+
+    activity_data = oura_data.get('activity')
+    if not activity_data:
+      return {}
+
+    activity_dict = {}
+    for activity_daily_data in activity_data:
+      activity_date = activity_daily_data.get('summary_date')
+      if not activity_date:
+        continue
+      activity_dict[activity_date] = activity_daily_data
+
+    return activity_dict
+
+  def update(self):
+    """Fetches new state data for the activity sensor."""
+    activity_dates = {
+        date_name: _get_date_by_name(date_name)
+        for date_name in self._monitored_days
+    }
+
+    # Add an extra week to retrieve past week in case current week data is
+    # missing.
+    start_date = _add_days_to_string_date(min(activity_dates.values()), -7)
+    end_date = max(activity_dates.values())
+
+    oura_data = self._api.get_oura_data('ACTIVITY', start_date, end_date)
+    activity_data = self._parse_activity_data(oura_data)
+  
+    _LOGGER.info("ACTIVITY      : %s", oura_data)
+    _LOGGER.info("ACTIVITY PARSE: %s", activity_data)
+
+    if not activity_data:
+      _LOGGER.info("No data, Returns")
+      return
+
+    for date_name, date_value in activity_dates.items():
+      if date_name not in self._attributes:
+        self._attributes[date_name] = dict(_EMPTY_ACTIVITY_SENSOR_ATTRIBUTE)
+        self._attributes[date_name]['date'] = date_value
+
+      activity = activity_data.get(date_value)
+      date_name_title = date_name.title()
+
+      # Check past dates to see if backfill is possible when missing data.
+      backfill = 0
+      while (not activity and
+             backfill < self._backfill and
+             date_value >= start_date):
+        last_date_value = date_value
+        date_value = _get_backfill_date(date_name, date_value)
+        if not date_value:
+          break
+
+        _LOGGER.info("Unable to read Oura data for %s", date_name_title)
+        _LOGGER.info("(%s). Fetching %s instead.", last_date_value, date_value)
+
+        activity = activity_data.get(date_value)
+        backfill += 1
+
+      if not activity:
+        _LOGGER.error("Unable to read Oura data for %s.", date_name_title)
+        continue
+
+      # State gets the value of the activity score for the first monitored day.
+      if self._monitored_days.index(date_name) == 0:
+        self._state = activity.get('score')
+
+      
+      self._attributes[date_name] = {
+          'date': date_value,
+
+          # indicates how well the ring user has managed to avoid of inactivity
+          'score_stay_active': activity.get('score_stay_active'),
+          # Daily physical activity as equal meters i.e. amount of walking needed to get the same amount of activity.
+          'daily_movement': activity.get('daily_movement'),
+          # Number of hours during the day when the user was not wearing the ring.
+          'non_wear': _minutes_to_hours(activity.get('non_wear')),
+          # Number of hours during the day spent resting.
+          'rest': _minutes_to_hours(activity.get('rest')),
+          # Number of inactive hours.
+          'inactive': _minutes_to_hours(activity.get('inactive')),
+          # Number of continuous inactive periods of 60 minutes or more during the day.
+          'inactivity_alerts': activity.get('inactivity_alerts'),
+          #  Total number of steps registered during the day.
+          'steps': activity.get('steps'),
+          # Total energy consumption during the day including Basal Metabolic Rate in kilocalories.
+          'cal_total': activity.get('cal_total'),
+          # Energy consumption caused by the physical activity of the day in kilocalories.
+          'cal_active': activity.get('cal_active'),
+          # This activity score contributor indicates how often the ring user has reached his/her daily activity target during seven last days.
+          'score_meet_daily_targets': activity.get('score_meet_daily_targets'),
+          # This activity score contributor indicates how regularly the ring user has had physical exercise the ring user has got during last seven days.
+          'score_training_frequency': activity.get('score_training_frequency'),
+          # This activity score contributor indicates how much physical exercise the ring user has got during last seven days.
+          'score_training_volume': activity.get('score_training_volume'),
       }
 
   # Hass.io properties.

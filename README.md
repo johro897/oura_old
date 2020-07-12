@@ -4,7 +4,7 @@
 This project is a custom component for [Home-Assistant](https://home-assistant.io).
 
 The component sensors with data for previous days from [Oura Ring](https://ouraring.com/).
-This fork has support for both sleep and readiness data.
+This fork has support for both sleep, activity and readiness data.
 
 ## Installation
 
@@ -141,6 +141,23 @@ The attributes will contain the daily data for the selected days. In particular:
 * `score_resting_hr`: Resting heartrate (bpm).
 * `score_sleep_balance`: Past 2 weeks sleep is in balance with needs.
 * `score_temperature`: Variations of temperature from your baseline
+
+### Attributes per Day Activity Sensor
+The state of the sensor will show the **activity score** for the first selected day (recommended: yesterday).
+The attributes will contain the daily data for the selected days. In particular:
+* `date`: YYYY-MM-DD of the date of the data point.
+* `score_stay_active`: indicates how well the ring user has managed to avoid of inactivity.
+* `daily_movement`: Daily physical activity as equal meters i.e. amount of walking needed to get the same amount of activity.
+* `non_wear`: Number of hours during the day when the user was not wearing the ring.
+* `rest`: Number of hours during the day spent resting.
+* `inactive`: Number of inactive hours.
+* `inactivity_alerts`: Number of continuous inactive periods of 60 minutes or more during the day.
+* `steps`: Total number of steps registered during the day.
+* `cal_total`: Total energy consumption during the day including Basal Metabolic Rate in kilocalories.
+* `cal_active`: Energy consumption caused by the physical activity of the day in kilocalories.
+* `score_meet_daily_targets`: This activity score contributor indicates how often the ring user has reached his/her daily activity target during seven last days.
+* `score_training_frequency`: This activity score contributor indicates how regularly the ring user has had physical exercise the ring user has got during last seven days.
+* `score_training_volume`: This activity score contributor indicates how much physical exercise the ring user has got during last seven days.
 
 ### Sample output
 
