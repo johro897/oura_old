@@ -89,6 +89,9 @@ class OuraApi(object):
     elif data_type == 'READINESS':
       api_url = self._get_api_endpoint(OuraEndpoints.READINESS,
                                       start_date=start_date)
+    elif data_type == 'ACTIVITY':
+      api_url = self._get_api_endpoint(OuraEndpoints.ACTIVITY,
+                                      start_date=start_date)
     else:
       _LOGGER.error("Wrong Data Type when getting data")
 
