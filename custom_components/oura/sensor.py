@@ -269,6 +269,8 @@ class OuraSleepSensor(entity.Entity):
     """
     if not oura_data or 'sleep' not in oura_data:
       _LOGGER.error("Couldn\'t fetch data for Oura ring sensor.")
+      if 'Invalid Access Token' in oura_data:
+        _LOGGER.error("Error - Invalid Access Token")
       return {}
 
     sleep_data = oura_data.get('sleep')
